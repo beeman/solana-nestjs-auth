@@ -1,4 +1,7 @@
 import { INestApplication } from '@nestjs/common';
+import { Keypair } from '@solana/web3.js';
+import * as base58 from 'bs58';
+import * as nacl from 'tweetnacl';
 import {
   apiUrl,
   expectEndpoint,
@@ -6,6 +9,12 @@ import {
   initializeE2eApp,
   postEndpoint,
 } from './helpers';
+
+export function signString(secretKey: Uint8Array, payload: string) {
+  const msg = Uint8Array.from(Buffer.from(payload));
+
+  return nacl.sign.detached(msg, secretKey);
+}
 
 describe('ApiAuthFeatureController (e2e)', () => {
   let app: INestApplication;
@@ -65,6 +74,64 @@ describe('ApiAuthFeatureController (e2e)', () => {
       const res = await postEndpoint(app, apiUrl('auth/login'), data, 401);
 
       expect(res.body.message).toEqual('Unauthorized');
+    });
+  });
+
+  describe('challenge', () => {
+    const adminByteArray = JSON.parse(process.env['ADMIN_BYTE_ARRAY']);
+    const adminKeypair = Keypair.fromSecretKey(Uint8Array.from(adminByteArray));
+    const adminPublicKey = adminKeypair.publicKey.toBase58();
+    const endpointRequest = 'auth/request-challenge';
+    const endpointRespond = 'auth/respond-challenge';
+
+    it('should receive a challenge for an existing public key', async () => {
+      const res = await expectEndpoint(
+        app,
+        apiUrl(`${endpointRequest}/${adminPublicKey}`),
+        200
+      );
+      expect(res.body).toHaveProperty('challenge');
+    });
+
+    it('should respond to a received challenge', async () => {
+      const challengeResponse = await expectEndpoint(
+        app,
+        apiUrl(`${endpointRequest}/${adminPublicKey}`),
+        200
+      );
+      expect(challengeResponse.body).toHaveProperty('challenge');
+
+      const challenge: string = challengeResponse.body.challenge;
+      const signature = signString(adminKeypair.secretKey, challenge);
+
+      expect(signature.length).toEqual(64);
+
+      const payload = {
+        publicKey: adminPublicKey,
+        challenge,
+        signature: base58.encode(signature),
+      };
+
+      console.log(JSON.stringify(payload));
+      const response = await postEndpoint(
+        app,
+        apiUrl(endpointRespond),
+        payload
+      );
+
+      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('user.username');
+    });
+
+    describe('unexpected behavior', () => {
+      it('should not receive a challenge for an unknown public key', async () => {
+        const res = await expectEndpoint(
+          app,
+          apiUrl(`${endpointRequest}/not-existing`),
+          404
+        );
+        expect(res.body.message).toEqual('Not Found');
+      });
     });
   });
 

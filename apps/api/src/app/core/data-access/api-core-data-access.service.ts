@@ -20,8 +20,12 @@ export class ApiCoreDataAccessService
     return this.user.findUnique({ where: { id: userId } });
   }
 
+  findUserByPublicKey(publicKey: string) {
+    return this.user.findUnique({ where: { publicKey } });
+  }
+
   findUserByUsername(username: string) {
-    return this.user.findUnique({ where: { id: username } });
+    return this.user.findUnique({ where: { username } });
   }
 
   findUsers() {

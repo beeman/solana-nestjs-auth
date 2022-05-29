@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Request,
   UseGuards,
@@ -10,6 +11,7 @@ import {
   ApiAuthDataAccessService,
   JwtAuthGuard,
   LocalAuthGuard,
+  SolanaAuthGuard,
 } from '../data-access';
 
 @Controller('auth')
@@ -31,5 +33,16 @@ export class ApiAuthFeatureController {
   @Post('register')
   register(@Body() body) {
     return this.service.register(body);
+  }
+
+  @Get('request-challenge/:publicKey')
+  requestChallenge(@Param('publicKey') publicKey: string) {
+    return this.service.requestChallenge(publicKey);
+  }
+
+  @UseGuards(SolanaAuthGuard)
+  @Post('respond-challenge')
+  respondChallenge(@Request() req) {
+    return this.service.login(req.user);
   }
 }

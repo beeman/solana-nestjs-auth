@@ -13,5 +13,5 @@ model User {
   updatedAt DateTime @default(now()) @updatedAt
   username  String   @unique
   password  String?
-  publicKey String?
+  publicKey String?  @unique
 }

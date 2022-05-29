@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
+import { Keypair, PublicKey } from '@solana/web3.js';
+import * as bs58 from 'bs58';
 import { ApiCoreDataAccessService } from '../../core/data-access';
 
 @Injectable()
@@ -37,5 +39,29 @@ export class ApiAuthDataAccessService {
         username: user.username,
       },
     };
+  }
+
+  async requestChallenge(publicKey: string) {
+    const user = await this.data.findUserByPublicKey(publicKey);
+    if (!user) {
+      throw new NotFoundException();
+    }
+    const random = Keypair.generate().publicKey.toBase58();
+    const expiresAt = new Date().getTime() + 60_000;
+    const challenge = `${random}.${expiresAt}`;
+
+    this.logger.verbose(`requestChallenge: ${publicKey}, ${challenge}`);
+    const buffer = Buffer.from(challenge);
+    const encoded = bs58.encode(buffer);
+
+    return { challenge: encoded };
+  }
+
+  async findUserByPublicKey(publicKey: string) {
+    const user = await this.data.findUserByPublicKey(publicKey);
+    if (!user) {
+      throw new NotFoundException();
+    }
+    return user;
   }
 }
