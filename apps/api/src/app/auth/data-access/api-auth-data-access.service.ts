@@ -8,8 +8,6 @@ export class ApiAuthDataAccessService {
 
   register(body) {
     this.logger.verbose(`Register: ${JSON.stringify(body, null, 2)}`);
-    return {
-      body,
-    };
+    return body;
   }
 }
