@@ -13,15 +13,37 @@ export class ApiCoreDataAccessService
 
   async onModuleInit() {
     await this.$connect();
+    this.ensureUsers();
   }
 
-  getUserById(userId: string) {
-    return this.user.findUnique({
-      where: { id: userId },
-    });
+  findUserById(userId: string) {
+    return this.user.findUnique({ where: { id: userId } });
+  }
+
+  findUserByUsername(username: string) {
+    return this.user.findUnique({ where: { id: username } });
+  }
+
+  findUsers() {
+    return this.user.findMany();
   }
 
   uptime() {
     return process.uptime();
+  }
+
+  private async ensureUsers() {
+    const count = await this.user.count();
+    if (!count) {
+      const created = await this.user.create({
+        data: {
+          id: 'admin',
+          username: 'admin',
+          password: 'password',
+          publicKey: process.env['ADMIN_PUBLIC_KEY'],
+        },
+      });
+      this.logger.verbose(`Created user ${JSON.stringify(created)}`);
+    }
   }
 }
